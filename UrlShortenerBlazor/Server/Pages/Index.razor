@@ -7,7 +7,17 @@
     <div class="form-group">
         <InputText class="form-control" @bind-Value="ShortenUrlRequest.FullUrl" placeholder="Add the URL you want to shorten" aria-describedby="urlToShortner" />
     </div>
-    <button type="submit" class="btn btn-primary btn-block">Shorten</button>
+    @if (IsFetching)
+    {
+        <button type="submit" class="btn btn-primary btn-block" disabled="disabled">
+            <span class="spinner-border spinner-border-sm mr-3" role="status" aria-hidden="true"></span>
+            <span>Shortening...</span>
+        </button>
+    }
+    else
+    {
+        <button type="submit" class="btn btn-primary btn-block">Shorten</button>
+    }
     <div class="bg-danger text-white"></div>
 </EditForm>
 
@@ -16,7 +26,7 @@
     <div class="input-group">
         <input class="form-control" @bind-value="@ShortenedUrl" aria-describedby="shortenedUrl" />
         <div class="input-group-append">
-            <button type="button" class="btn btn-primary" @onclick="CopyTextToClipboard">Copy</button>
+            <button type="button" class="btn @CopyButtonClass" @onclick="CopyTextToClipboard">Copy</button>
         </div>
     </div>
 </div>
@@ -26,21 +36,27 @@
     public string ShortUrl { get; set; }
 
     [Inject]
-    protected IJSRuntime JSRuntime { get; set; }
+    private IJSRuntime JSRuntime { get; set; }
 
     [Inject]
-    protected HttpClient HttpClient { get; set; }
+    private HttpClient HttpClient { get; set; }
 
     [Inject]
-    protected NavigationManager NavigationManager {  get; set; }
+    private NavigationManager NavigationManager {  get; set; }
 
-    protected string UrlToShorten { get; set; }
+    private string UrlToShorten { get; set; }
 
-    protected string ShortenedUrl { get; set; }
+    private string ShortenedUrl { get; set; }
 
-    protected ShortenUrlRequestModel ShortenUrlRequest { get; set; } = new ();
+    private ShortenUrlRequestModel ShortenUrlRequest { get; set; } = new ();
 
-    protected bool HideResult { get; set; } = true;
+    private bool HideResult { get; set; } = true;
+
+    private bool IsFetching { get; set; }
+
+    private bool WasCopied { get; set; }
+
+    private string CopyButtonClass => $"{(WasCopied ? "btn-success" : "btn-primary")}";
 
     protected override async Task OnInitializedAsync()
     {
@@ -65,6 +81,8 @@
 
     private async Task HandleValidSubmission()
     {
+        IsFetching = true;
+
         var address = $"{NavigationManager.BaseUri}api/ShortenedUrls/Shorten";
 
         var response = await HttpClient.PostAsJsonAsync<ShortenUrlRequestModel>(address, ShortenUrlRequest);
@@ -75,13 +93,18 @@
             ShortenedUrl = $"{NavigationManager.BaseUri}{result.ShortenedUrl}";
 
             HideResult = false;
+            WasCopied = false;
 
             StateHasChanged();
         }
+
+        IsFetching = false;
     }
 
     private async Task CopyTextToClipboard()
     {
         await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", ShortenedUrl);
+
+        WasCopied = true;
     }
 }
