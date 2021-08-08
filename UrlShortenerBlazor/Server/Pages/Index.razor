@@ -1,0 +1,110 @@
+﻿@page "/{ShortUrl?}"
+
+<EditForm Model="@ShortenUrlRequest" OnValidSubmit="@HandleValidSubmission" class="mt-5 mx-auto px-5">
+    <DataAnnotationsValidator />
+        <ValidationSummary />
+    
+    <div class="form-group">
+        <InputText class="form-control" @bind-Value="ShortenUrlRequest.FullUrl" placeholder="Add the URL you want to shorten" aria-describedby="urlToShortner" />
+    </div>
+    @if (IsFetching)
+    {
+        <button type="submit" class="btn btn-primary btn-block" disabled="disabled">
+            <span class="spinner-border spinner-border-sm mr-3" role="status" aria-hidden="true"></span>
+            <span>Shortening...</span>
+        </button>
+    }
+    else
+    {
+        <button type="submit" class="btn btn-primary btn-block">Shorten</button>
+    }
+    <div class="bg-danger text-white"></div>
+</EditForm>
+
+<div hidden="@HideResult" class="form-group mt-2 px-5">
+    <label>Result</label>
+    <div class="input-group">
+        <input class="form-control" @bind-value="@ShortenedUrl" aria-describedby="shortenedUrl" />
+        <div class="input-group-append">
+            <button type="button" class="btn @CopyButtonClass" @onclick="CopyTextToClipboard">Copy</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string ShortUrl { get; set; }
+
+    [Inject]
+    private IJSRuntime JSRuntime { get; set; }
+
+    [Inject]
+    private HttpClient HttpClient { get; set; }
+
+    [Inject]
+    private NavigationManager NavigationManager {  get; set; }
+
+    private string UrlToShorten { get; set; }
+
+    private string ShortenedUrl { get; set; }
+
+    private ShortenUrlRequestModel ShortenUrlRequest { get; set; } = new ();
+
+    private bool HideResult { get; set; } = true;
+
+    private bool IsFetching { get; set; }
+
+    private bool WasCopied { get; set; }
+
+    private string CopyButtonClass => $"{(WasCopied ? "btn-success" : "btn-primary")}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var address = $"{NavigationManager.BaseUri}api/ShortenedUrls/Reverse";
+
+        if (ShortUrl is null)
+            return;
+
+        var fullUrlRequest = new FullUrlRequestModel()
+        {
+            ShortUrl = ShortUrl
+        };
+
+        var response = await HttpClient.PostAsJsonAsync<FullUrlRequestModel>(address, fullUrlRequest);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<FullUrlResponseModel>();
+
+            NavigationManager.NavigateTo(result.FullUrl);
+        }
+    }
+
+    private async Task HandleValidSubmission()
+    {
+        IsFetching = true;
+
+        var address = $"{NavigationManager.BaseUri}api/ShortenedUrls/Shorten";
+
+        var response = await HttpClient.PostAsJsonAsync<ShortenUrlRequestModel>(address, ShortenUrlRequest);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<ShortenUrlResponseModel>();
+
+            ShortenedUrl = $"{NavigationManager.BaseUri}{result.ShortenedUrl}";
+
+            HideResult = false;
+            WasCopied = false;
+
+            StateHasChanged();
+        }
+
+        IsFetching = false;
+    }
+
+    private async Task CopyTextToClipboard()
+    {
+        await JSRuntime.InvokeVoidAsync("clipboardCopy.copyText", ShortenedUrl);
+
+        WasCopied = true;
+    }
+}

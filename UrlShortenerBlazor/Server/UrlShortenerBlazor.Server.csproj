@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="5.0.8">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ControllerServices\UrlShortenerBlazor.ControllerServices.csproj" />
+    <ProjectReference Include="..\DbModels\UrlShortenerBlazor.DbModels.csproj" />
+    <ProjectReference Include="..\Shared\UrlShortenerBlazor.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
